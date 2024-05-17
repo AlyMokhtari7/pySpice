@@ -1,0 +1,121 @@
+****** for data ****
+******Vin = Va1
+******Vout1 = lin1
+******Vout2 = lin2
+******Vout3 = vout1
+******Vout4 = vout2
+******
+******Sweep parameters:
+******Static=Cload1, 100f<Cload<3p
+******10p<Trise, Tfall<0.15n
+******0.7n<period1<1.2n,
+
+
+
+.include techfile130.pm
+.param supply1 = 1.2V 
+.param supply2 = 1.2V 
+.param length = 3n 
+.param wpmos=2500n wnmos=1000n 
+.param tr1 = 0.1n
+.param tr2 = 0.1n
+.param cfar_end1 = 12p
+.param cfar_end2 = 1p
+.param rnear_end1 = 50
+.param rnear_end2 = 5e6
+.param period1 = 0.9n
+.param Cload1 = 1p
+
+vcapacitor vcap 0 {Cload1}
+
+vsupply1 vdd 0 {supply1}
+vgnd vss 0 0V
+
+* Inputs to drivers
+vinTL1 va1 vss PULSE(0 {supply1} {0.02*period1} {tr1} {tr1} {0.5*period1} {period1})
+*vinTL2 va2 vss PULSE(0 {supply2} {0.02*period1} {tr2} {tr2} {0.5*period1} {period1})
+
+******************Three Stage Driver******************************
+.SUBCKT ThreeDriver va voutc vdd vss PARAMS: l=length wpmos=wpmos wnmos=wnmos 
+Mpa vout va vdd vdd pmos l={length} w={wpmos} ; pmos 
+Mna vout va vss vss nmos l={length} w={wnmos} ; nmos
+
+Mpb voutb vout vdd vdd pmos l={length} w={3.14*wpmos} ; pmos 
+Mnb voutb vout vss vss nmos l={length} w={3.14*wnmos} ; nmos
+
+Mpc voutc voutb vdd vdd pmos l={length} w={9.8696*wpmos} ; pmos
+Mnc voutc voutb vss vss nmos l={length} w={9.8696*wnmos} ; nmos
+.ENDS ThreeDriver
+
+******************Four Stage Driver******************************
+.SUBCKT FourDriver va voutd vdd vss PARAMS: l=length wpmos=wpmos wnmos=wnmos 
+Mpa vout va vdd vdd pmos l={length} w={wpmos} ; pmos 
+Mna vout va vss vss nmos l={length} w={wnmos} ; nmos
+
+Mpb voutb vout vdd vdd pmos l={length} w={3.14*wpmos} ; pmos 
+Mnb voutb vout vss vss nmos l={length} w={3.14*wnmos} ; nmos
+
+Mpc voutc voutb vdd vdd pmos l={length} w={9.8696*wpmos} ; pmos
+Mnc voutc voutb vss vss nmos l={length} w={9.8696*wnmos} ; nmos
+
+Mpd voutd voutc vdd vdd pmos l={length} w={31.0063*wpmos} ; pmos
+Mnd voutd voutc vss vss nmos l={length} w={31.0063*wnmos} ; nmos
+.ENDS FourDriver 
+
+******************Six Stage Driver******************************
+.SUBCKT SixDriver va voutf vdd vss PARAMS: l=length wpmos=wpmos wnmos=wnmos 
+Mpa vout va vdd vdd pmos l={length} w={wpmos} ; pmos 
+Mna vout va vss vss nmos l={length} w={wnmos} ; nmos
+
+Mpb voutb vout vdd vdd pmos l={length} w={3.14*wpmos} ; pmos 
+Mnb voutb vout vss vss nmos l={length} w={3.14*wnmos} ; nmos
+
+Mpc voutc voutb vdd vdd pmos l={length} w={9.8696*wpmos} ; pmos
+Mnc voutc voutb vss vss nmos l={length} w={9.8696*wnmos} ; nmos
+
+Mpd voutd voutc vdd vdd pmos l={length} w={31.0063*wpmos} ; pmos
+Mnd voutd voutc vss vss nmos l={length} w={31.0063*wnmos} ; nmos
+
+Mpe voute voutd vdd vdd pmos l={length} w={97.21*wpmos} ; pmos
+Mne voute voutd vss vss nmos l={length} w={97.21*wnmos} ; nmos
+
+Mpf voutf voute vdd vdd pmos l={length} w={305.244*wpmos} ; pmos
+Mnf voutf voute vss vss nmos l={length} w={305.244*wnmos} ; nmos
+.ENDS SixDriver 
+
+******************** 2 coupled lines TL *************
+.model PLINE2 CPL length={Len} 
++R={P2R11} {P2R12} {P2R22}
++L={P2L11} {P2L12} {P2L22} 
++G={P2G11} {P2G12} {P2G22} 
++C={P2C11} {P2C12} {P2C22}
+.param Len=0.25 Rs=50 
++ P2R11=7.5 P2R12=1 P2R22=7.5
++ P2C11=12p P2C12=-6p P2C22=12p
++ P2L11=2*4.9n P2L12=2*2.9n P2L22=2*4.9n
++ P2G11=10m P2G12=-1m P2G22=10m
+* Transmission lines connected to driver -  coupled lines (2 coupled-line format)
+
+Xfour1 in1 lin1 vdd vss FourDriver l=length wpmos=wpmos wnmos=wnmos
+* Xfour2 in2 lin2 vdd vss FourDriver l=length wpmos=wpmos wnmos=wnmos
+
+
+P1 lin1 lin2 0 vout1 vout2 0 PLINE2  
+
+Rdr	va1 in1 50
+Rin2 in2 0 rnear_end1
+
+Cload vout1 vss1 Cload1
+Ccrosstalk1 vout2 0 cfar_end1
+
+
+vdc0 vss1 vss dc 0V
+.tran 0.1n {5*period1}; 0 0.1n
+.control
+	set wr_singlescale
+    run 
+ 	* plot v(va1) v(in1) v(in2) v(vout1) v(Crosstalk1) 
+ 	wrdata Interconnect_Exp2_train1.txt v(va1) v(vcap) v(lin1) v(lin2) v(vout1) v(vout2) 
+    * quit
+.endc
+.End

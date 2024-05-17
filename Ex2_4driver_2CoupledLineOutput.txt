@@ -1,0 +1,31 @@
+
+Note: No compatibility mode selected!
+
+warning, can't find model 'rnear_end1' from line
+    rin2 in2 0 rnear_end1
+warning, can't find model 'cload1' from line
+    cload vout1 vss1 cload1
+warning, can't find model 'cfar_end1' from line
+    ccrosstalk1 vout2 0 cfar_end1
+
+Circuit: ****** for data ****
+
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+Fatal error: BSIM4v5: mosfet nmos, model m.xfour1.mnd: Effective channel length <= 0
+doAnalyses: no such parameter on this device
+
+run simulation(s) aborted
+Error: no such vector va1
+  in term: v(va1)
+
+Doing analysis at TEMP = 27.000000 and TNOM = 27.000000
+
+CPL GC memory allocated 480 times, freed 402 times
+CPL GC size of hash table to be freed: 78 entries.
+CPL GC number of addresses freed: 78 entries.
+Fatal error: BSIM4v5: mosfet nmos, model m.xfour1.mnd: Effective channel length <= 0
+doAnalyses: no such parameter on this device
+
+run simulation(s) aborted
+Note: No ".plot", ".print", or ".fourier" lines; no simulations run

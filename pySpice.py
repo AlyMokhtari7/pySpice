@@ -28,15 +28,16 @@ class Colors:
     CROSSED = "\033[9m"
     END = "\033[0m"
 
-#constants
-pySpice_name = f'{Colors.YELLOW}py{Colors.END}{Colors.BLUE}Spice{Colors.END}'
-pyspice_randomRegEX = '\{\{pyspice\srandom(Tiny|Small|Big)?(Int|Float)\(?(\d+)?,?(\d+)?\)?}}' #has 4 groups 
 
-#import the subproccess module used to call binaries of the system
+# constants
+pySpice_name = f'{Colors.YELLOW}py{Colors.END}{Colors.BLUE}Spice{Colors.END}'
+PYSPICE_CODE_REG_EX = '\{\{pyspice (.*)}}'
+
+# import the subproccess module used to call binaries of the system
 import subprocess
-import random
-import sys
 import re
+from utils import *
+
 
 def read_txt(file_name):
     file = open(file_name, "r")
@@ -44,27 +45,31 @@ def read_txt(file_name):
     file.close()
     return lines
 
-def runFile (filename : str, verbose = True):
-    '''
+
+def runFile(filename: str, verbose=True):
+    """
         takes the filename and returns a list that contains the lines of the output
         also saves the output file
         if Verbose is set to True it will print more details
-    '''
-    print(f"{pySpice_name} is about to run the ngSpice , after viewing the desired logs type {Colors.RED}Exit{Colors.END}\n {Colors.LIGHT_WHITE} ! pySpice will take care of the rest !{Colors.END}")
+    """
+    print(
+        f"{pySpice_name} is about to run the ngSpice , after viewing the desired logs type {Colors.RED}Exit{Colors.END}\n {Colors.LIGHT_WHITE} ! pySpice will take care of the rest !{Colors.END}")
     with open('ngSpiceExitter', "w+") as f:
-        process = subprocess.run(['ngspice',f'{filename}','-o',f'{filename[:-4]}Output.txt' , '-a'], close_fds=True, stdin=f)
+        process = subprocess.run(['ngspice', f'{filename}', '-o', f'{filename[:-4]}Output.txt', '-a'], close_fds=True,
+                                 stdin=f)
     # process.stdin.write('quit')
     if verbose is True:
-        print(f'TNX, now {pySpice_name} takes care of the rest \n {Colors.LIGHT_WHITE}FYI{Colors.END} the output is saved in {filename[:-4]}Output.txt')
+        print(
+            f'TNX, now {pySpice_name} takes care of the rest \n {Colors.LIGHT_WHITE}FYI{Colors.END} the output is saved in {filename[:-4]}Output.txt')
     return read_txt(f'{filename[:-4]}Output.txt')
 
 
-def runFileAndPrintOutput(filename : str, verbose = True):
-    for i in runFile('Ex2_4driver_2CoupledLine.net'):
+def runFileAndPrintOutput(filename: str, verbose=True):
+    for i in runFile(filename, verbose):
         print(i)
 
 
-def replace_function_calls(input_filename, output_filename):
+def replace_function_calls(input_filename, output_filename, **parameters):
     """
     Replaces all occurrences of '{{function a(x, y)}}' in the input file with the return value of function_a(x, y).
 
@@ -76,40 +81,15 @@ def replace_function_calls(input_filename, output_filename):
         None
     """
 
-    def regEx_replace_func(match):
-        # if condition for this type {{pyspice randomNum}}
-        if (match.group(1) is None and match.group(3) is None and match.group(4) is None):
-            if (match.group(2) == 'Int'):
-                return str(random.randint((-1*sys.maxsize),sys.maxsize))
-            elif (match.group(2) == 'Float'):
-                return str(random.random((-1*sys.maxsize),sys.maxsize))
-        # if condition for this type {{pyspice randomTinyInt}}
-        elif (match.group(3) is None and match.group(4) is None):
-            if (match.group(1) == 'Tiny'):
-                if (match.group(2) == 'Int'):
-                    return str(random.randint(0,10))
-                elif (match.group(2) == 'Float'):
-                    return str(random.random(0,1))
-            elif (match.group(1) == 'Small'):
-                if (match.group(2) == 'Int'):
-                    return str(random.randint(0,255))
-                elif (match.group(2) == 'Float'):
-                    return str(random.random(0,255))
-            elif (match.group(1) == 'Big'):
-                if (match.group(2) == 'Int'):
-                    return str(random.randint(256,))
-                elif (match.group(2) == 'Float'):
-                    return str(random.random(256,))
-        elif (match.group(1) is None):
-            if (match.group(2) == 'Int'):
-                return str(random.randint(int(match.group(3)),int(match.group(4))))
-            elif (match.group(2) == 'Float'):
-                return str(random.random(int(match.group(3)),int(match.group(4))))
+    def regEx_replace_func(theMatch):
+        for key in parameters:
+            exec(f"{key} = {parameters[key]}")
+        return str(eval(theMatch.group(1)))
 
     with open(input_filename, 'r') as input_file:
         text = input_file.read()
 
-    replaced_text = re.sub(pyspice_randomRegEX, regEx_replace_func, str(text))
+    replaced_text = re.sub(PYSPICE_CODE_REG_EX, regEx_replace_func, str(text))
 
     if output_filename:
         with open(output_filename, 'w') as output_file:
@@ -119,11 +99,12 @@ def replace_function_calls(input_filename, output_filename):
         print(replaced_text)
 
 
-def pySpiceParser(pySpiceFilePath : str, parameters = None):
+def pySpiceParser(pySpiceFilePath: str, **parameters):
     if pySpiceFilePath[-7:] == 'pyspice':
-        replace_function_calls(pySpiceFilePath, (pySpiceFilePath[:-8]+'.net'))
+        replace_function_calls(pySpiceFilePath, pySpiceFilePath[:-8] + '.net', **parameters)
     else:
         print('File format is not supported!')
 
-# pySpiceParser('Ex2_4driver_2CoupledLine.pyspice')
-runFileAndPrintOutput('Ex2_4driver_2CoupledLine.net')
+
+pySpiceParser('Ex2_4driver_2CoupledLine.pyspice',n=3)
+# runFileAndPrintOutput('Ex2_4driver_2CoupledLine.net')

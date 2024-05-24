@@ -20,7 +20,7 @@
 .param tr1 = 0.1n
 .param tr2 = 0.1n
 .param cfar_end1 = {{pyspice randomInt(10,12)}}p
-.param cfar_end2 = 1p
+.param cfar_end2 = {{pyspice n}}p
 .param rnear_end1 = 50
 .param rnear_end2 = 5e6
 .param period1 = 0.9n

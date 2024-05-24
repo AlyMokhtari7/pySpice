@@ -31,7 +31,7 @@ class Colors:
 
 # constants
 pySpice_name = f'{Colors.YELLOW}py{Colors.END}{Colors.BLUE}Spice{Colors.END}'
-PYSPICE_CODE_REG_EX = '\{\{pyspice (.*)}}'
+PYSPICE_CODE_REG_EX = '\\{\\{pyspice (.*)}}'
 
 # import the subproccess module used to call binaries of the system
 import subprocess
@@ -106,5 +106,5 @@ def pySpiceParser(pySpiceFilePath: str, **parameters):
         print('File format is not supported!')
 
 
-pySpiceParser('Ex2_4driver_2CoupledLine.pyspice',n=3)
+pySpiceParser('Ex2_4driver_2CoupledLine.pyspice', n=3)
 # runFileAndPrintOutput('Ex2_4driver_2CoupledLine.net')

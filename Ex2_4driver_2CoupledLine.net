@@ -19,7 +19,7 @@
 .param wpmos=2500n wnmos=1000n 
 .param tr1 = 0.1n
 .param tr2 = 0.1n
-.param cfar_end1 = 11p
+.param cfar_end1 = 10p
 .param cfar_end2 = 3p
 .param rnear_end1 = 50
 .param rnear_end2 = 5e6

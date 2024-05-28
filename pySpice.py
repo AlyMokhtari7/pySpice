@@ -1,3 +1,8 @@
+import subprocess  # import the subproccess module used to call binaries of the system
+import re
+from utils import *  # don't remove this
+
+
 # pySpice module
 
 # ANSII Colors 
@@ -31,80 +36,110 @@ class Colors:
 
 # constants
 pySpice_name = f'{Colors.YELLOW}py{Colors.END}{Colors.BLUE}Spice{Colors.END}'
-PYSPICE_CODE_REG_EX = '\\{\\{pyspice (.*)}}'
-
-# import the subproccess module used to call binaries of the system
-import subprocess
-import re
-from utils import *
 
 
-def read_txt(file_name):
-    file = open(file_name, "r")
-    lines = [x for x in file.readlines()]
-    file.close()
-    return lines
+class PySpice:
+    def __init__(self):
+        self.variables = {}
 
+    @staticmethod
+    def read_txt(file_name):
+        file = open(file_name, "r")
+        lines = [x for x in file.readlines()]
+        file.close()
+        return lines
 
-def runFile(filename: str, verbose=True):
-    """
-        takes the filename and returns a list that contains the lines of the output
-        also saves the output file
-        if Verbose is set to True it will print more details
-    """
-    print(
-        f"{pySpice_name} is about to run the ngSpice , after viewing the desired logs type {Colors.RED}Exit{Colors.END}\n {Colors.LIGHT_WHITE} ! pySpice will take care of the rest !{Colors.END}")
-    with open('ngSpiceExitter', "w+") as f:
-        process = subprocess.run(['ngspice', f'{filename}', '-o', f'{filename[:-4]}Output.txt', '-a'], close_fds=True,
-                                 stdin=f)
-    # process.stdin.write('quit')
-    if verbose is True:
+    def runFile(self, filename: str, verbose=True):
+        """
+            takes the filename and returns a list that contains the lines of the output
+            also saves the output file
+            if Verbose is set to True it will print more details
+        """
         print(
-            f'TNX, now {pySpice_name} takes care of the rest \n {Colors.LIGHT_WHITE}FYI{Colors.END} the output is saved in {filename[:-4]}Output.txt')
-    return read_txt(f'{filename[:-4]}Output.txt')
+            f"{pySpice_name} is about to run the ngSpice , after viewing the desired logs type {Colors.RED}Exit{Colors.END}\n {Colors.LIGHT_WHITE} ! pySpice will take care of the rest !{Colors.END}")
+        with open('ngSpiceExitter', "w+") as f:
+            process = subprocess.run(['ngspice', f'{filename}', '-o', f'{filename[:-4]}Output.txt', '-a'],
+                                     close_fds=True,
+                                     stdin=f)
+        # process.stdin.write('quit')
+        if verbose is True:
+            print(
+                f'TNX, now {pySpice_name} takes care of the rest \n {Colors.LIGHT_WHITE}FYI{Colors.END} the output is saved in {filename[:-4]}Output.txt')
+        return self.read_txt(f'{filename[:-4]}Output.txt')
+
+    def runFileAndPrintOutput(self, filename: str, verbose=True):
+        for i in self.runFile(filename, verbose):
+            print(i)
+
+    def replacePyspiceNotations(self, input_filename, output_filename):
+        """
+        Replaces all occurrences of '{{function a(x, y)}}' in the input file with the return value of function_a(x, y).
+
+        Args:
+            input_filename (str): The name of the input file.
+            output_filename (str): The name of the output file (optional).
+
+        Returns:
+            None
+        """
+
+        def regEx_replace_func(theMatch):
+            for key in self.variables:
+                exec(f"{key} = '{self.variables[key]}'")
+            return str(eval(theMatch.group(1)))
+
+        with open(input_filename, 'r') as input_file:
+            text = input_file.read()
+
+        replaced_text = re.sub(r"\{\{pyspice ((?:(?!\{\{pyspice).)*)}}", regEx_replace_func, str(text))
+
+        if output_filename:
+            with open(output_filename, 'w') as output_file:
+                output_file.write(replaced_text)
+        else:
+            print("Replaced content:\n")
+            print(replaced_text)
+
+    def pySpiceParser(self, pySpiceFilePath: str, outFile=None):
+        self.variables["pySpice__outFileName"] = outFile if outFile is not None else ""
+        if pySpiceFilePath[-7:] == 'pyspice':
+            self.replacePyspiceNotations(pySpiceFilePath, pySpiceFilePath[:-8] + '.net')
+        else:
+            print('File format is not supported!')
+
+    def regexReplaceAssign(self, theMatch):
+        self.variables[theMatch.group(1)] = theMatch.group(4)
+        return (theMatch.group(1) + theMatch.group(2) + "=" + theMatch.group(3) + "{{pyspice " + theMatch.group(1) +
+                "}}" + theMatch.group(5))
+
+    def regexReplaceParam(self, theMatch):
+        return ".param" + theMatch.group(1) + re.sub(r"([\w\d]*)( *)=( *)([.\de]*)(\w*)", self.regexReplaceAssign,
+                                                     theMatch.group(2))
+
+    def regexReplaceFileName(self, theMatch):
+        rawFileName = theMatch.group(1)[:theMatch.group(1).find('.')]
+        fileExt = theMatch.group(1)[theMatch.group(1).find('.'):]
+        return "wrdata " + rawFileName + "{{pyspice pySpice__outFileName}}" + fileExt
+
+    def parseNgSpiceFile(self, ngSpiceFilePath: str):
+        content = ""
+        with open(ngSpiceFilePath) as file:
+            for line in file.readlines():
+                content += line
+
+        fileContent = re.sub(r"\.param( *)(.*)", self.regexReplaceParam, content)
+        fileContent = re.sub(r"wrdata ([.\w]*)", self.regexReplaceFileName, fileContent)
+
+        with open(ngSpiceFilePath[:ngSpiceFilePath.rfind('.')] + ".pyspice", "w+") as file:
+            file.write(fileContent)
+
+    def setVariables(self, **newVariables):
+        for var in newVariables:
+            self.variables[var] = newVariables[var]
 
 
-def runFileAndPrintOutput(filename: str, verbose=True):
-    for i in runFile(filename, verbose):
-        print(i)
-
-
-def replace_function_calls(input_filename, output_filename, **parameters):
-    """
-    Replaces all occurrences of '{{function a(x, y)}}' in the input file with the return value of function_a(x, y).
-
-    Args:
-        input_filename (str): The name of the input file.
-        output_filename (str): The name of the output file (optional).
-
-    Returns:
-        None
-    """
-
-    def regEx_replace_func(theMatch):
-        for key in parameters:
-            exec(f"{key} = {parameters[key]}")
-        return str(eval(theMatch.group(1)))
-
-    with open(input_filename, 'r') as input_file:
-        text = input_file.read()
-
-    replaced_text = re.sub(PYSPICE_CODE_REG_EX, regEx_replace_func, str(text))
-
-    if output_filename:
-        with open(output_filename, 'w') as output_file:
-            output_file.write(replaced_text)
-    else:
-        print("Replaced content:\n")
-        print(replaced_text)
-
-
-def pySpiceParser(pySpiceFilePath: str, **parameters):
-    if pySpiceFilePath[-7:] == 'pyspice':
-        replace_function_calls(pySpiceFilePath, pySpiceFilePath[:-8] + '.net', **parameters)
-    else:
-        print('File format is not supported!')
-
-
-pySpiceParser('Ex2_4driver_2CoupledLine.pyspice', n=3)
-# runFileAndPrintOutput('Ex2_4driver_2CoupledLine.net')
+pySpice = PySpice()
+pySpice.parseNgSpiceFile('Ex2_4driver_2CoupledLine.net')
+pySpice.setVariables(length=5)
+pySpice.pySpiceParser('Ex2_4driver_2CoupledLine.pyspice', outFile=2)
+pySpice.runFileAndPrintOutput('Ex2_4driver_2CoupledLine.net')

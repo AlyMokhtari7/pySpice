@@ -137,9 +137,13 @@ class PySpice:
         for var in newVariables:
             self.variables[var] = newVariables[var]
 
+def main():
+    pySpice = PySpice()
+    pySpice.parseNgSpiceFile('Ex2_4driver_2CoupledLine.net')
+    # pySpice.setVariables(length=5)
+    pySpice.pySpiceParser('Ex2_4driver_2CoupledLine.pyspice', outFile=None)
+    pySpice.runFileAndPrintOutput('Ex2_4driver_2CoupledLine.net')
 
-pySpice = PySpice()
-pySpice.parseNgSpiceFile('Ex2_4driver_2CoupledLine.net')
-# pySpice.setVariables(length=5)
-pySpice.pySpiceParser('Ex2_4driver_2CoupledLine.pyspice', outFile=None)
-pySpice.runFileAndPrintOutput('Ex2_4driver_2CoupledLine.net')
+
+if __name__ == "__main__":
+    main()

@@ -13,18 +13,18 @@
 
 
 .include techfile130.pm
-.param supply1 = 1.2V 
-.param supply2 = 1.2V 
-.param length = {{pyspice randomInt(1,10)}}n 
-.param wpmos=2500n wnmos=1000n 
-.param tr1 = 0.1n
-.param tr2 = 0.1n
-.param cfar_end1 = {{pyspice randomInt(10,12)}}p
-.param cfar_end2 = {{pyspice n}}p
-.param rnear_end1 = 50
-.param rnear_end2 = 5e6
-.param period1 = 0.9n
-.param Cload1 = 1p
+.param supply1 = {{pyspice supply1}}V 
+.param supply2 = {{pyspice supply2}}V 
+.param length = {{pyspice length}}n 
+.param wpmos={{pyspice wpmos}}n wnmos={{pyspice wnmos}}n 
+.param tr1 = {{pyspice tr1}}n
+.param tr2 = {{pyspice tr2}}n
+.param cfar_end1 = {{pyspice cfar_end1}}p
+.param cfar_end2 = {{pyspice cfar_end2}}p
+.param rnear_end1 = {{pyspice rnear_end1}}
+.param rnear_end2 = {{pyspice rnear_end2}}
+.param period1 = {{pyspice period1}}n
+.param Cload1 = {{pyspice Cload1}}p
 
 vcapacitor vcap 0 {Cload1}
 
@@ -89,7 +89,7 @@ Mnf voutf voute vss vss nmos l={length} w={305.244*wnmos} ; nmos
 +L={P2L11} {P2L12} {P2L22} 
 +G={P2G11} {P2G12} {P2G22} 
 +C={P2C11} {P2C12} {P2C22}
-.param Len=0.25 Rs=50 
+.param Len={{pyspice Len}} Rs={{pyspice Rs}} 
 + P2R11=7.5 P2R12=1 P2R22=7.5
 + P2C11=12p P2C12=-6p P2C22=12p
 + P2L11=2*4.9n P2L12=2*2.9n P2L22=2*4.9n
@@ -115,7 +115,7 @@ vdc0 vss1 vss dc 0V
 	set wr_singlescale
     run 
  	* plot v(va1) v(in1) v(in2) v(vout1) v(Crosstalk1) 
- 	wrdata Interconnect_Exp2_train1.txt v(va1) v(vcap) v(lin1) v(lin2) v(vout1) v(vout2) 
+ 	wrdata Interconnect_Exp2_train1{{pyspice pySpice__outFileName}}.txt v(va1) v(vcap) v(lin1) v(lin2) v(vout1) v(vout2) 
     * quit
 .endc
 .End

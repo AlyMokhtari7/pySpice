@@ -43,5 +43,5 @@ vsupply1#branch                   -1.01985e-06
 vcapacitor#branch                            0
 
 
-No. of Data Rows : 278
-Note: Simulation executed from .control section 
+No. of Data Rows : 281
+Note: No ".plot", ".print", or ".fourier" lines; no simulations run

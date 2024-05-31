@@ -1,5 +1,6 @@
 import subprocess  # import the subproccess module used to call binaries of the system
 import re
+import json
 from utils import *  # don't remove this
 
 
@@ -100,12 +101,17 @@ class PySpice:
             print("Replaced content:\n")
             print(replaced_text)
 
-    def pySpiceParser(self, pySpiceFilePath: str, outFile=None):
-        self.variables["pySpice__outFileName"] = outFile if outFile is not None else ""
+    def pySpiceParser(self, pySpiceFilePath: str, pySpiceVarsFilePath: str, outFile=None):
         if pySpiceFilePath[-7:] == 'pyspice':
+            self.getVariables(pySpiceVarsFilePath)
+            self.variables["pySpice__outFileName"] = outFile if outFile is not None else ""
             self.replacePyspiceNotations(pySpiceFilePath, pySpiceFilePath[:-8] + '.net')
         else:
             print('File format is not supported!')
+
+    def getVariables(self, filePath):
+        with open(filePath, 'r') as file:
+            self.variables = json.load(file)
 
     def regexReplaceAssign(self, theMatch):
         self.variables[theMatch.group(1)] = theMatch.group(4)
@@ -119,6 +125,7 @@ class PySpice:
     def regexReplaceFileName(self, theMatch):
         rawFileName = theMatch.group(1)[:theMatch.group(1).find('.')]
         fileExt = theMatch.group(1)[theMatch.group(1).find('.'):]
+        self.variables["pySpice__outFileRawName"] = theMatch.group(1)
         return "wrdata " + rawFileName + "{{pyspice pySpice__outFileName}}" + fileExt
 
     def parseNgSpiceFile(self, ngSpiceFilePath: str):
@@ -133,6 +140,9 @@ class PySpice:
         with open(ngSpiceFilePath[:ngSpiceFilePath.rfind('.')] + ".pyspice", "w+") as file:
             file.write(fileContent)
 
+        with open(ngSpiceFilePath[:ngSpiceFilePath.rfind('.')] + ".pyspice.vars", "w+") as file:
+            json.dump(self.variables, file)
+
     def setVariables(self, **newVariables):
         for var in newVariables:
             self.variables[var] = newVariables[var]
@@ -142,7 +152,7 @@ def main():
     pySpice = PySpice()
     pySpice.parseNgSpiceFile('Ex2_4driver_2CoupledLine.net')
     # pySpice.setVariables(length=5)
-    pySpice.pySpiceParser('Ex2_4driver_2CoupledLine.pyspice', outFile=None)
+    pySpice.pySpiceParser('Ex2_4driver_2CoupledLine.pyspice', 'Ex2_4driver_2CoupledLine.pyspice.vars', outFile=None)
     pySpice.runFileAndPrintOutput('Ex2_4driver_2CoupledLine.net')
 
 

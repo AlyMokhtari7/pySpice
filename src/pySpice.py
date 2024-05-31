@@ -246,7 +246,8 @@ def main():
     pySpice = PySpice()
     pySpice.parseNgSpiceFile('testFolder/Ex2_4driver_2CoupledLine.net')
     # pySpice.setVariables(length=5)
-    pySpice.pySpiceParser('testFolder/Ex2_4driver_2CoupledLine.pyspice', 'testFolder/Ex2_4driver_2CoupledLine.pyspice.vars', outFile=None)
+    pySpice.pySpiceParser('testFolder/Ex2_4driver_2CoupledLine.pyspice',
+                          'testFolder/Ex2_4driver_2CoupledLine.pyspice.vars', outFile=None)
     pySpice.runFileAndPrintOutput('testFolder/Ex2_4driver_2CoupledLine.net')
 
 

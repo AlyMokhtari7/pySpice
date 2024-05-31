@@ -1,9 +1,11 @@
 import random
 
 
-def randomInt(b: int, e: int):
-    return random.randint(b, e)
+def randomInt(lower_bound: int, upper_bound: int):
+    return random.randint(lower_bound, upper_bound)
 
+def randomFloat(lower_bound: int, upper_bound: int):
+    return random.uniform(lower_bound, upper_bound)
 
 def getVariableOrDefault(varName: str, defaultValue):
     if varName in vars():

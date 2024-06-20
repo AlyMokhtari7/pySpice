@@ -14,6 +14,7 @@ import re
 import json
 from utils import *  # don't remove this
 
+
 # pySpice module
 
 # ANSII Colors 
@@ -92,6 +93,12 @@ class PySpice:
 
     def __init__(self):
         self.variables = {}
+        print("""
+        """ + pySpice_name + """
+        This program uses PATH variable to find 'ngspice' program
+        Please include 'ngspice' into PATH if you are using MS-Windows
+        """)
+        # input()
 
     @staticmethod
     def read_txt(file_path):
@@ -137,11 +144,11 @@ class PySpice:
           the file ngSpiceExitter acts as an Stdin and helps quitting the NgSpice so that PySpice can continue!
         """
 
-        #TODO implemet different output file
+        # TODO implemet different output file
         with open('ngSpiceExitter', "w+") as f:
             subprocess.run(['ngspice', f'{filename}', '-o', f'{filename[:-4]}Output.txt', '-a'],
-                                     close_fds=True,
-                                     stdin=f)
+                           close_fds=True,
+                           stdin=f)
         if verbose is True:
             print(
                 f'The output is saved in {filename[:-4]}Output.txt')
@@ -175,7 +182,7 @@ class PySpice:
 
         def regEx_replace_func(theMatch):
             for key in self.variables:
-                #TODO ASK what does this code does ? ig it replaces sth
+                # TODO ASK what does this code does ? ig it replaces sth
                 exec(f"{key} = '{self.variables[key]}'")
             return str(eval(theMatch.group(1)))
 
@@ -187,13 +194,13 @@ class PySpice:
         if output_filename:
             with open(output_filename, 'w') as output_file:
                 output_file.write(replaced_text)
-        #TODO ASK why the else acts like it prints some sort of a success message ?
+        # TODO ASK why the else acts like it prints some sort of a success message ?
         else:
             print("Replaced content:\n")
             print(replaced_text)
 
     def pySpiceParser(self, pySpiceFilePath: str, pySpiceVarsFilePath: str, outFile=None):
-        #TODO ASK what is self.variable and what this line below does ?
+        # TODO ASK what is self.variable and what this line below does ?
         if pySpiceFilePath[-7:] == 'pyspice':
             self.getVariables(pySpiceVarsFilePath)
             self.variables["pySpice__outFileName"] = outFile if outFile is not None else ""
@@ -203,24 +210,37 @@ class PySpice:
 
     def getVariables(self, filePath):
         with open(filePath, 'r') as file:
-            self.variables = json.load(file)
+            variables = json.load(file)
+            for var in variables:
+                if var not in self.variables:
+                    self.variables[var] = variables[var]
 
     def regexReplaceAssign(self, theMatch):
-        #TODO ASK ok ik what it does but common it has no docs
+        # TODO ASK ok ik what it does but common it has no docs
         self.variables[theMatch.group(1)] = theMatch.group(4)
         return (theMatch.group(1) + theMatch.group(2) + "=" + theMatch.group(3) + "{{pyspice " + theMatch.group(1) +
                 "}}" + theMatch.group(5))
 
     def regexReplaceParam(self, theMatch):
-        #TODO ASK what this regex is for 
+        # TODO ASK what this regex is for
         return ".param" + theMatch.group(1) + re.sub(r"([\w\d]*)( *)=( *)([.\de]*)(\w*)", self.regexReplaceAssign,
                                                      theMatch.group(2))
 
     def regexReplaceFileName(self, theMatch):
         rawFileName = theMatch.group(1)[:theMatch.group(1).find('.')]
         fileExt = theMatch.group(1)[theMatch.group(1).find('.'):]
-        self.variables["pySpice__outFileRawName"] = theMatch.group(1)
-        return "wrdata " + rawFileName + "{{pyspice pySpice__outFileName}}" + fileExt
+        self.variables["outFileRawName"] = rawFileName
+        print(self.variables["outFileRawName"])
+        return "wrdata " + "{{pyspice outFileRawName}}" + fileExt
+
+    def regexReplaceFileNameEchoPrint(self, theMatch):
+        echoOrPrint = theMatch.group(1)
+        params = theMatch.group(2)
+        rawFileName = theMatch.group(3)[:theMatch.group(3).find('.')]
+        fileExt = theMatch.group(3)[theMatch.group(3).find('.'):]
+        self.variables["outFileRawName"] = rawFileName
+        print(self.variables["outFileRawName"])
+        return f"{echoOrPrint} {params}>> " + "{{pyspice outFileRawName}}" + fileExt
 
     def parseNgSpiceFile(self, ngSpiceFilePath: str):
         content = ""
@@ -230,6 +250,8 @@ class PySpice:
 
         fileContent = re.sub(r"\.param( *)(.*)", self.regexReplaceParam, content)
         fileContent = re.sub(r"wrdata ([.\w]*)", self.regexReplaceFileName, fileContent)
+        fileContent = re.sub(r"(echo|print) ([\s\w()_].*)>>\s*([.\w]*)", self.regexReplaceFileNameEchoPrint,
+                             fileContent)
 
         with open(ngSpiceFilePath[:ngSpiceFilePath.rfind('.')] + ".pyspice", "w+") as file:
             file.write(fileContent)
@@ -244,11 +266,12 @@ class PySpice:
 
 def main():
     pySpice = PySpice()
-    pySpice.parseNgSpiceFile('testFolder/Ex2_4driver_2CoupledLine.net')
-    # pySpice.setVariables(length=5)
-    pySpice.pySpiceParser('testFolder/Ex2_4driver_2CoupledLine.pyspice',
-                          'testFolder/Ex2_4driver_2CoupledLine.pyspice.vars', outFile=None)
-    pySpice.runFileAndPrintOutput('testFolder/Ex2_4driver_2CoupledLine.net')
+    pySpice.parseNgSpiceFile('../testFolder/Ex2_4driver_2CoupledLine_test.net')
+    for i in range(10):
+        pySpice.setVariables(length=130 + i // 5, supply1=1.2 + i / 10, outFileRawName=f"my_out{i}")
+        pySpice.pySpiceParser('../testFolder/Ex2_4driver_2CoupledLine_test.pyspice',
+                              '../testFolder/Ex2_4driver_2CoupledLine_test.pyspice.vars', outFile=None)
+        pySpice.runFileAndPrintOutput('../testFolder/Ex2_4driver_2CoupledLine_test.net')
 
 
 if __name__ == "__main__":

@@ -229,9 +229,12 @@ class PySpice:
     def regexReplaceFileName(self, theMatch):
         rawFileName = theMatch.group(1)[:theMatch.group(1).find('.')]
         fileExt = theMatch.group(1)[theMatch.group(1).find('.'):]
+        params = theMatch.group(2)
         self.variables["outFileRawName"] = rawFileName
         print(self.variables["outFileRawName"])
-        return "wrdata " + "{{pyspice outFileRawName}}" + fileExt
+        self.variables["writeParams"] = params
+        print(self.variables["writeParams"])
+        return "wrdata " + "{{pyspice outFileRawName}}" + fileExt + " {{pyspice writeParams}}"
 
     def regexReplaceFileNameEchoPrint(self, theMatch):
         echoOrPrint = theMatch.group(1)
@@ -240,7 +243,17 @@ class PySpice:
         fileExt = theMatch.group(3)[theMatch.group(3).find('.'):]
         self.variables["outFileRawName"] = rawFileName
         print(self.variables["outFileRawName"])
-        return f"{echoOrPrint} {params}>> " + "{{pyspice outFileRawName}}" + fileExt
+        self.variables["writeParams"] = params
+        print(self.variables["writeParams"])
+        return echoOrPrint + " {{pyspice writeParams}}>> " + "{{pyspice outFileRawName}}" + fileExt
+
+    def regexReplaceTran(self, theMatch):
+        self.variables["tran"] = theMatch.group(1)
+        return ".tran {{pyspice tran}}"
+
+    def regexReplaceSet(self,theMatch):
+        self.variables["set"] = theMatch.group(3)
+        return f".control {theMatch.group(1)}set{theMatch.group(2)}"+"{{pyspice set}}"
 
     def parseNgSpiceFile(self, ngSpiceFilePath: str):
         content = ""
@@ -249,9 +262,11 @@ class PySpice:
                 content += line
 
         fileContent = re.sub(r"\.param( *)(.*)", self.regexReplaceParam, content)
-        fileContent = re.sub(r"wrdata ([.\w]*)", self.regexReplaceFileName, fileContent)
+        fileContent = re.sub(r"wrdata ([.\w]*)\s+([\w()\s]*)$", self.regexReplaceFileName, fileContent)
         fileContent = re.sub(r"(echo|print) ([\s\w()_].*)>>\s*([.\w]*)", self.regexReplaceFileNameEchoPrint,
                              fileContent)
+        fileContent = re.sub(r"\.tran ([.\w\s{}*]*)", self.regexReplaceTran, fileContent)
+        fileContent = re.sub(r"\.control(\s*)set(\s*)([\w_]*)", self.regexReplaceSet, fileContent)
 
         with open(ngSpiceFilePath[:ngSpiceFilePath.rfind('.')] + ".pyspice", "w+") as file:
             file.write(fileContent)

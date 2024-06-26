@@ -93,6 +93,7 @@ class PySpice:
 
     def __init__(self):
         self.variables = {}
+        self.acDcCount = 0
         print("""
         """ + pySpice_name + """
         This program uses PATH variable to find 'ngspice' program
@@ -251,9 +252,15 @@ class PySpice:
         self.variables["tran"] = theMatch.group(1)
         return ".tran {{pyspice tran}}"
 
-    def regexReplaceSet(self,theMatch):
+    def regexReplaceSet(self, theMatch):
         self.variables["set"] = theMatch.group(3)
-        return f".control {theMatch.group(1)}set{theMatch.group(2)}"+"{{pyspice set}}"
+        return f".control {theMatch.group(1)}set{theMatch.group(2)}" + "{{pyspice set}}"
+
+    def regexReplaceAcDc(self, theMatch):
+        varName = f"ac_dc{self.acDcCount}"
+        self.acDcCount += 1
+        self.variables[varName] = theMatch.group(2)
+        return theMatch.group(1) + "{{pyspice " + varName + " }}" + theMatch.group(3)
 
     def parseNgSpiceFile(self, ngSpiceFilePath: str):
         content = ""
@@ -267,6 +274,7 @@ class PySpice:
                              fileContent)
         fileContent = re.sub(r"\.tran ([.\w\s{}*]*)", self.regexReplaceTran, fileContent)
         fileContent = re.sub(r"\.control(\s*)set(\s*)([\w_]*)", self.regexReplaceSet, fileContent)
+        fileContent = re.sub(r"(\s|^)(ac|dc)(\s*|$)", self.regexReplaceAcDc, fileContent)
 
         with open(ngSpiceFilePath[:ngSpiceFilePath.rfind('.')] + ".pyspice", "w+") as file:
             file.write(fileContent)
@@ -277,6 +285,11 @@ class PySpice:
     def setVariables(self, **newVariables):
         for var in newVariables:
             self.variables[var] = newVariables[var]
+
+    def convertAllVoltagesTo(self, value="ac"):
+        for var in self.variables:
+            if "ac_dc" in var:
+                self.variables[var] = value
 
 
 def main():

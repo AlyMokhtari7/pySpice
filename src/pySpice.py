@@ -12,6 +12,11 @@ functions:
 import subprocess  # import the subproccess module used to call binaries of the system
 import re
 import json
+
+import matplotlib.axes._axes
+from matplotlib import pyplot as plt, colors as plc
+import numpy as np
+from numpy import linspace
 from utils import *  # don't remove this
 
 
@@ -235,7 +240,7 @@ class PySpice:
         print(self.variables["outFileRawName"])
         self.variables["writeParams"] = params
         print(self.variables["writeParams"])
-        return "wrdata " + "{{pyspice outFileRawName}}" + fileExt + " {{pyspice writeParams}}"
+        return "wrdata " + "{{pyspice outFileRawName}}" + fileExt + " {{pyspice writeParams}}\n"
 
     def regexReplaceFileNameEchoPrint(self, theMatch):
         echoOrPrint = theMatch.group(1)
@@ -246,7 +251,7 @@ class PySpice:
         print(self.variables["outFileRawName"])
         self.variables["writeParams"] = params
         print(self.variables["writeParams"])
-        return echoOrPrint + " {{pyspice writeParams}}>> " + "{{pyspice outFileRawName}}" + fileExt
+        return echoOrPrint + " {{pyspice writeParams}}>> " + "{{pyspice outFileRawName}}" + fileExt + "\n"
 
     def regexReplaceTran(self, theMatch):
         self.variables["tran"] = theMatch.group(1)
@@ -263,18 +268,18 @@ class PySpice:
         return theMatch.group(1) + "{{pyspice " + varName + " }}" + theMatch.group(3)
 
     def parseNgSpiceFile(self, ngSpiceFilePath: str):
-        content = ""
+        fileContent = ""
         with open(ngSpiceFilePath) as file:
             for line in file.readlines():
-                content += line
+                fileContent += line
 
-        fileContent = re.sub(r"\.param( *)(.*)", self.regexReplaceParam, content)
-        fileContent = re.sub(r"wrdata ([.\w]*)\s+([\w()\s]*)$", self.regexReplaceFileName, fileContent)
-        fileContent = re.sub(r"(echo|print) ([\s\w()_].*)>>\s*([.\w]*)", self.regexReplaceFileNameEchoPrint,
+        fileContent = re.sub(r"\.param( *)(.*)", self.regexReplaceParam, fileContent)
+        fileContent = re.sub(r"wrdata\s+([.\w]*)\s+([\w()\s]*)(\n|$)", self.regexReplaceFileName, fileContent)
+        fileContent = re.sub(r"(echo|print) ([\s\w()].*)>>\s*([.\w]*)\s*(\n|$)", self.regexReplaceFileNameEchoPrint,
                              fileContent)
         fileContent = re.sub(r"\.tran ([.\w\s{}*]*)", self.regexReplaceTran, fileContent)
         fileContent = re.sub(r"\.control(\s*)set(\s*)([\w_]*)", self.regexReplaceSet, fileContent)
-        fileContent = re.sub(r"(\s|^)(ac|dc)(\s*|$)", self.regexReplaceAcDc, fileContent)
+        fileContent = re.sub(r"(\s|^)(ac|dc)(\s|$)", self.regexReplaceAcDc, fileContent)
 
         with open(ngSpiceFilePath[:ngSpiceFilePath.rfind('.')] + ".pyspice", "w+") as file:
             file.write(fileContent)
@@ -290,17 +295,43 @@ class PySpice:
         for var in self.variables:
             if "ac_dc" in var:
                 self.variables[var] = value
+    
+    def runFileAndShowDataAsPlot(self,filePath,width=20,height=20,dpi=100):
+        outFile = self.variables["outFileRawName"]+".txt"
+        self.runFileAndPrintOutput(filePath)
+        with open(outFile, "r") as file:
+            values = {}
+            names = ['time', *list(filter(lambda x: x.strip() != "", self.variables["writeParams"].split(" ")))]
+            for line in file.readlines():
+                value = np.array(list(map(lambda x: float(x), filter(lambda x: x.strip() != "", line.strip().split(" ")))))
+                for j in range(len(value)):
+                    if names[j] not in values:
+                        values[names[j]] = []
+                    values[names[j]].append(value[j])
+
+            matplotColors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
+            fig,axs = plt.subplots(len(names)-1)
+            fig.suptitle('PySpice')
+            fig.set_figwidth(width)
+            fig.set_figheight(height)
+            fig.set_dpi(dpi)
+            for i in range(1, len(names)):
+                axs[i-1].plot(values[names[0]],values[names[i]],matplotColors[i % len(matplotColors)])
+                axs[i-1].set_title(names[i])
+
+            plt.xlabel(names[0])
+            plt.show()
 
 
 def main():
     pySpice = PySpice()
-    pySpice.parseNgSpiceFile('../testFolder/Ex2_4driver_2CoupledLine_test.net')
-    for i in range(10):
-        pySpice.setVariables(length=130 + i // 5, supply1=1.2 + i / 10, outFileRawName=f"my_out{i}")
-        pySpice.pySpiceParser('../testFolder/Ex2_4driver_2CoupledLine_test.pyspice',
-                              '../testFolder/Ex2_4driver_2CoupledLine_test.pyspice.vars', outFile=None)
-        pySpice.runFileAndPrintOutput('../testFolder/Ex2_4driver_2CoupledLine_test.net')
-
+    pySpice.parseNgSpiceFile('../testFolder/Ex2_4driver_2CoupledLine.net')
+    for i in range(1):
+        pySpice.setVariables(length=130 + i // 5, supply1=1.2 + i / 10, outFileRawName=f"my_out")
+        pySpice.pySpiceParser('../testFolder/Ex2_4driver_2CoupledLine.pyspice',
+                              '../testFolder/Ex2_4driver_2CoupledLine.pyspice.vars', outFile=None)
+        pySpice.runFileAndShowDataAsPlot('../testFolder/Ex2_4driver_2CoupledLine.net')
+        
 
 if __name__ == "__main__":
     main()

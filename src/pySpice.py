@@ -209,7 +209,8 @@ class PySpice:
         # TODO ASK what is self.variable and what this line below does ?
         if pySpiceFilePath[-7:] == 'pyspice':
             self.getVariables(pySpiceVarsFilePath)
-            self.variables["pySpice__outFileName"] = outFile if outFile is not None else ""
+            if outFile is not None:
+                self.variables["outFileRawName"] = outFile
             self.replacePyspiceNotations(pySpiceFilePath, pySpiceFilePath[:-8] + '.net')
         else:
             print('File format is not supported!')
@@ -295,29 +296,46 @@ class PySpice:
         for var in self.variables:
             if "ac_dc" in var:
                 self.variables[var] = value
-    
-    def runFileAndShowDataAsPlot(self,filePath,width=20,height=20,dpi=100):
-        outFile = self.variables["outFileRawName"]+".txt"
+
+    def getWriteParams(self):
+        return list(filter(lambda x: x.strip() != "", self.variables["writeParams"].split(" ")))
+
+    def runFileAndShowDataAsPlot(self, filePath: str, params: list | None = None, width=20, height=20, dpi=100,
+                                 allInOne=False):
+        if params is None:
+            params = self.getWriteParams()
+        outFile = self.variables["outFileRawName"] + ".txt"
         self.runFileAndPrintOutput(filePath)
         with open(outFile, "r") as file:
             values = {}
-            names = ['time', *list(filter(lambda x: x.strip() != "", self.variables["writeParams"].split(" ")))]
+            names = ['time', *params]
             for line in file.readlines():
-                value = np.array(list(map(lambda x: float(x), filter(lambda x: x.strip() != "", line.strip().split(" ")))))
-                for j in range(len(value)):
+                value = np.array(
+                    list(map(lambda x: float(x), filter(lambda x: x.strip() != "", line.strip().split(" ")))))
+                for j in range(len(names)):
                     if names[j] not in values:
                         values[names[j]] = []
                     values[names[j]].append(value[j])
 
             matplotColors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'w']
-            fig,axs = plt.subplots(len(names)-1)
-            fig.suptitle('PySpice')
-            fig.set_figwidth(width)
-            fig.set_figheight(height)
-            fig.set_dpi(dpi)
-            for i in range(1, len(names)):
-                axs[i-1].plot(values[names[0]],values[names[i]],matplotColors[i % len(matplotColors)])
-                axs[i-1].set_title(names[i])
+            if allInOne:
+                plt.figure(figsize=(width, height), dpi=dpi)
+                for i in range(1, len(names)):
+                    plt.plot(values[names[0]], values[names[i]], matplotColors[i % len(matplotColors)],
+                             label=names[i])
+                plt.legend()
+            else:
+                fig, axs = plt.subplots(len(names) - 1)
+                if len(names) - 1 == 1:
+                    axs = [axs]
+                fig.suptitle('PySpice')
+                fig.set_figwidth(width)
+                fig.set_figheight(height)
+                fig.set_dpi(dpi)
+                for i in range(1, len(names)):
+                    axs[i - 1].plot(values[names[0]], values[names[i]], matplotColors[i % len(matplotColors)],
+                                    label=names[i])
+                    axs[i - 1].legend()
 
             plt.xlabel(names[0])
             plt.show()
@@ -330,8 +348,8 @@ def main():
         pySpice.setVariables(length=130 + i // 5, supply1=1.2 + i / 10, outFileRawName=f"my_out")
         pySpice.pySpiceParser('../testFolder/Ex2_4driver_2CoupledLine.pyspice',
                               '../testFolder/Ex2_4driver_2CoupledLine.pyspice.vars', outFile=None)
-        pySpice.runFileAndShowDataAsPlot('../testFolder/Ex2_4driver_2CoupledLine.net')
-        
+        pySpice.runFileAndShowDataAsPlot('../testFolder/Ex2_4driver_2CoupledLine.net', allInOne=True)
+
 
 if __name__ == "__main__":
     main()
